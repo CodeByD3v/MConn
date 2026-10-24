@@ -1,0 +1,23 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  receiver:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: windows-receiver } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: pytest -q
+  # Android job is a placeholder until a Gradle wrapper is generated (run `gradle wrapper` in android/).
+  android:
+    if: ${{ hashFiles('android/gradlew') != '' }}
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: android } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - run: ./gradlew testDebugUnitTest assembleDebug

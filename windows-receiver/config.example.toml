@@ -1,0 +1,13 @@
+# Copy to %LOCALAPPDATA%\MConn\config.toml (or $MCONN_DATA_DIR/config.toml). Every key is optional.
+# Environment variables MCONN_<KEY> (e.g. MCONN_PORT) override this file.
+
+inbox_dir = "D:/MConn/Inbox"
+# staging_dir = "D:/MConn/Inbox/.staging"   # must be on the SAME volume as inbox_dir
+port = 8443
+pc_name = "My-PC"
+max_file_bytes = 4294967296        # 4 GiB
+min_free_bytes = 1073741824        # refuse uploads that would leave less than 1 GiB free
+pairing_ttl_seconds = 300
+staging_ttl_hours = 24
+# bind_hosts = ["127.0.0.1", "192.168.1.20"]   # default: loopback + private LAN + Tailscale only
+# advertise_hosts = ["192.168.1.20", "100.101.102.103"]

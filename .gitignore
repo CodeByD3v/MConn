@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+.idea/
+# Never commit runtime data, keys or received files
+*.db
+*.db-wal
+*.db-shm
+receiver.key
+tls/

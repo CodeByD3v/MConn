@@ -1,0 +1,4 @@
+<resources>
+    <style name="Theme.MConn" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MConn.Translucent" parent="android:Theme.Translucent.NoTitleBar" />
+</resources>

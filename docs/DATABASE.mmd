@@ -1,0 +1,109 @@
+%% MConn data model
+%% Two physical SQLite databases exist; they are drawn together here for clarity.
+%%   PHONE_*  -> Android Room database (app-private)
+%%   PC_*     -> Windows receiver SQLite database
+%% The only link between the two sides is the shared transfer_id and device_id,
+%% exchanged over the protocol (see DESIGN.md). There is no shared database.
+%%
+%% Conventions: timestamps are UTC epoch milliseconds (integer);
+%% states are TEXT with a CHECK constraint matching DESIGN.md section 7.
+
+erDiagram
+    %% ---------- Android (Room) ----------
+    PHONE_PAIRED_PC ||--o{ PHONE_TRANSFER : "delivers to"
+
+    PHONE_PAIRED_PC {
+        text pc_id PK "stable receiver id"
+        text pc_name
+        text device_id "id assigned to this phone by the PC"
+        text cert_sha256 "pinned TLS fingerprint"
+        text last_good_host "tried first"
+        text hosts_json "LAN and private-network addresses"
+        int port
+        int paired_at
+    }
+
+    PHONE_TRANSFER {
+        text transfer_id PK "UUIDv4, idempotency key"
+        text pc_id FK
+        text display_name "original file name"
+        text mime
+        int size_bytes
+        text sha256
+        text local_path "app-private copy"
+        text state "QUEUED..DELIVERED, RETRY_WAIT, REJECTED, CANCELLED"
+        int bytes_sent "progress cache; PC is authoritative"
+        int attempt_count
+        int next_retry_at
+        text last_error_code
+        text last_error_message
+        text receipt_json "stored once DELIVERED"
+        int created_at
+        int updated_at
+        int delivered_at
+        int cleanup_after "private copy removal time"
+    }
+
+    %% ---------- Windows receiver (SQLite) ----------
+    PC_DEVICE ||--o{ PC_TRANSFER : "uploaded"
+    PC_DEVICE ||--o{ PC_NONCE : "used"
+    PC_PAIRING_SESSION |o--o| PC_DEVICE : "produced"
+
+    PC_DEVICE {
+        text device_id PK
+        text name "e.g. Pixel 8"
+        text public_key "P-256, PEM or DER base64"
+        text status "ACTIVE or REVOKED"
+        int paired_at
+        int revoked_at
+        int last_seen_at
+    }
+
+    PC_PAIRING_SESSION {
+        text session_id PK
+        text token_hash "SHA-256 of single-use token"
+        int created_at
+        int expires_at
+        int consumed_at
+        text pending_device_name "set on claim, awaiting approval"
+        text pending_public_key
+        text outcome "PENDING, APPROVED, DENIED, EXPIRED"
+        text resulting_device_id FK
+    }
+
+    PC_TRANSFER {
+        text transfer_id PK "same value as phone transfer_id"
+        text device_id FK
+        text original_name "as sent by phone, untrusted"
+        text stored_name "final sanitised name in inbox"
+        int size_bytes
+        text sha256
+        text mime
+        int bytes_received "resume offset"
+        text state "UPLOADING, COMMITTED, FAILED"
+        text staging_path
+        text final_path "never exposed to phone"
+        text fail_reason
+        int created_at
+        int updated_at
+        int committed_at
+    }
+
+    PC_NONCE {
+        text device_id FK
+        text nonce PK "unique per device"
+        int seen_at "purged after the skew window"
+    }
+
+    PC_SETTING {
+        text key PK "inbox_dir, port, max_file_bytes, ..."
+        text value
+    }
+
+    PC_SCHEMA_MIGRATION {
+        int version PK
+        int applied_at
+    }
+
+    %% ---------- Logical cross-side link (not a foreign key) ----------
+    PHONE_TRANSFER ||--o| PC_TRANSFER : "same transfer_id"

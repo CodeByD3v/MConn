@@ -41,3 +41,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}

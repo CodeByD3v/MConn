@@ -24,6 +24,12 @@ interface TransferDao {
 
     @Query("UPDATE transfers SET bytesSent = :sent, updatedAt = :now WHERE transferId = :id")
     suspend fun setProgress(id: String, sent: Long, now: Long)
+
+    @Query("SELECT * FROM transfers WHERE state = 'DELIVERED' AND cleanupAfter IS NOT NULL AND cleanupAfter <= :now AND localCopyDeleted = 0")
+    suspend fun cleanupDue(now: Long): List<TransferEntity>
+
+    @Query("UPDATE transfers SET localCopyDeleted = 1, updatedAt = :now WHERE transferId = :id")
+    suspend fun markLocalCopyDeleted(id: String, now: Long)
 }
 
 @Dao

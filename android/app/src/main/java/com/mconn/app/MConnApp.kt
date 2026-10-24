@@ -17,6 +17,7 @@ class MConnApp : Application() {
     override fun onCreate() {
         super.onCreate()
         TransferScheduler.schedulePeriodicResume(this)
+        TransferScheduler.schedulePeriodicCleanup(this)
         scope.launch { TransferScheduler.resumePending(this@MConnApp) }
 
         // Any network coming up (including Wi-Fi with no internet) is a reason to retry waiting transfers.

@@ -14,6 +14,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.mconn.app.queue.AppDatabase
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 object TransferScheduler {
@@ -44,11 +45,32 @@ object TransferScheduler {
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork("mconn-resume", ExistingPeriodicWorkPolicy.KEEP, request)
     }
+
+    /** Removes only MConn's private outgoing copies after a stored receipt's retention period. */
+    fun schedulePeriodicCleanup(context: Context) {
+        val request = PeriodicWorkRequestBuilder<CleanupWorker>(24, TimeUnit.HOURS).build()
+        WorkManager.getInstance(context)
+            .enqueueUniquePeriodicWork("mconn-cleanup", ExistingPeriodicWorkPolicy.KEEP, request)
+    }
 }
 
 class ResumeWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         TransferScheduler.resumePending(applicationContext)
+        return Result.success()
+    }
+}
+
+class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val dao = AppDatabase.get(applicationContext).transfers()
+        val outgoing = File(applicationContext.filesDir, "outgoing").canonicalFile
+        for (transfer in dao.cleanupDue(System.currentTimeMillis())) {
+            val local = File(transfer.localPath).canonicalFile
+            if (!local.path.startsWith(outgoing.path + File.separator)) return Result.failure()
+            if (local.exists() && !local.delete()) return Result.retry()
+            dao.markLocalCopyDeleted(transfer.transferId, System.currentTimeMillis())
+        }
         return Result.success()
     }
 }

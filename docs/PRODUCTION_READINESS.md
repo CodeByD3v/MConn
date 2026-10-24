@@ -24,11 +24,15 @@ or demonstrated release artifact. It does not change the current v1 protocol.
 
 ## Tier 1 — Ship readiness
 
-- [ ] Verify current Android platform requirements before changing target SDK or
-  foreground-service behavior; add Wi-Fi-network binding where device testing
-  shows that default routing can choose cellular for offline-LAN transfers.
-- [ ] Add Room migrations and export schemas; queue data must survive app updates.
-- [ ] Implement the delayed private-copy cleanup worker and test its retention rule.
+- [~] Verify current Android platform requirements before changing target SDK or
+  foreground-service behavior. At target SDK 34, the Android 17 local-network
+  permission is not yet required; Android 15 `dataSync` services have a six-hour
+  24-hour budget. Add Wi-Fi-network binding where device testing shows that
+  default routing can choose cellular for offline-LAN transfers.
+- [x] Add Room schema export and a v1→v2 migration for cleanup state; queue data
+  will not be wiped by this schema update.
+- [~] Implement delayed private-copy cleanup after a stored receipt. Device and
+  migration tests remain required before this can be marked fully evidenced.
 - [ ] Add a receiver installer/bundled executable, update process, code-signing
   plan, tray/status UI, and robust auto-start behavior.
 - [ ] Add a catch-all API error mapper that preserves the documented error shape.

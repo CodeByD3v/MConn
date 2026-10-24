@@ -39,6 +39,7 @@ data class TransferEntity(
     val updatedAt: Long,
     val deliveredAt: Long? = null,
     val cleanupAfter: Long? = null,
+    val localCopyDeleted: Boolean = false,
 )
 
 /** PHONE_PAIRED_PC in DATABASE.mmd. One PC per phone in v1. */

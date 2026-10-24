@@ -42,6 +42,7 @@ erDiagram
         int updated_at
         int delivered_at
         int cleanup_after "private copy removal time"
+        int local_copy_deleted "0 until the delayed cleanup worker removes it"
     }
 
     %% ---------- Windows receiver (SQLite) ----------

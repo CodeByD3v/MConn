@@ -8,18 +8,17 @@ or demonstrated release artifact. It does not change the current v1 protocol.
 
 - [x] Bound unauthenticated JSON requests to 16 KiB, including requests without
   `Content-Length`; regression tests cover both paths.
-- [ ] Add an agreed per-IP rate-limit policy for pairing claim and other
-  unauthenticated entry points. This is deferred pending a product decision.
+- [x] Limit pairing claims to 10 attempts per source IP in a rolling 60-second
+  window. This applies before the claim body is read.
 - [ ] Support private-interface rebinding and mDNS re-advertisement after DHCP,
   Wi-Fi, or Tailscale address changes. Never bind public interfaces.
 - [ ] Decide and document a certificate-rotation strategy that preserves the
   pinning invariant while allowing address/SAN changes.
-- [ ] Add rolling, durable receiver logs and an audit trail for pairings,
-  revocations, transfer state changes, and receipts. Do not log contents, keys,
-  tokens, or signatures.
+- [~] Add rolling, durable receiver logs. `receiver.log` now rotates under the
+  receiver data directory; pairing, revocation, and receipt audit events remain.
 - [ ] Protect the local management surface for shared Windows accounts and use
   Windows-appropriate private-key access controls.
-- [ ] Add Windows CI and exercise locked files, long paths, reserved names,
+- [~] Add Windows CI and exercise locked files, long paths, reserved names,
   OneDrive-style inboxes, and upload-idle timeout handling.
 - [ ] Compile and run Android unit tests on a real Android toolchain.
 
@@ -52,5 +51,6 @@ or demonstrated release artifact. It does not change the current v1 protocol.
 | Item | Evidence |
 | --- | --- |
 | Pre-auth JSON bound | `windows-receiver/tests/test_request_limits.py` |
+| Pairing claim rate limit | `mconn_receiver/api/rate_limit.py` |
 | Certificate SAN handling | `windows-receiver/tests/test_tls.py` |
 | Atomic upload baseline | Receiver unit and integration-style tests; full local suite still needs a Windows test-host fix |

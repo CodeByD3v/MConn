@@ -173,6 +173,10 @@ Relevant codes are `INVALID_REQUEST`, `BAD_SIGNATURE`, `STALE_REQUEST`,
 `TRANSFER_NOT_FOUND`, `TRANSFER_CONFLICT`, `OFFSET_MISMATCH`,
 `FILE_TOO_LARGE`, `HASH_MISMATCH`, `INSUFFICIENT_STORAGE`, and `NOT_ACCEPTING`.
 
+Pairing claims are limited to 10 attempts per source IP per rolling 60-second
+window. A limit breach returns `429 RATE_LIMITED` with `retryable: true`.
+Unexpected receiver errors return `500 INTERNAL_ERROR` in the same error shape.
+
 JSON request bodies for `POST /v1/pair/claim` and `POST /v1/transfers` are
 limited to 16 KiB, including chunked requests without a `Content-Length`
 header. A larger body returns `413 REQUEST_TOO_LARGE` with `retryable: false`.

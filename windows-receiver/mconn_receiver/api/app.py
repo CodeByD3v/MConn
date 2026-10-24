@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from contextlib import asynccontextmanager
 
@@ -18,8 +19,12 @@ from ..storage.store import InboxStore
 from ..transfer.service import TransferService
 from .admin import build_admin_router
 from .auth import Authenticator
+from .rate_limit import FixedWindowLimiter
 
 MAX_JSON_BODY_BYTES = 16 * 1024
+PAIRING_CLAIM_LIMIT = 10
+PAIRING_CLAIM_WINDOW_SECONDS = 60
+log = logging.getLogger("mconn.api")
 
 
 def _json(body: bytes) -> dict:
@@ -66,6 +71,7 @@ def create_app(settings: Settings, cert_sha256: str = "", admin_allowed_hosts: s
     pairing = PairingService(db, settings, identity)
     transfers = TransferService(db, settings, store)
     auth = Authenticator(db, settings)
+    pairing_limiter = FixedWindowLimiter(PAIRING_CLAIM_LIMIT, PAIRING_CLAIM_WINDOW_SECONDS)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -87,10 +93,21 @@ def create_app(settings: Settings, cert_sha256: str = "", admin_allowed_hosts: s
     async def _err(_: Request, exc: MConnError) -> JSONResponse:
         return JSONResponse(exc.body(), status_code=exc.status)
 
+    @app.exception_handler(Exception)
+    async def _unexpected(_: Request, exc: Exception) -> JSONResponse:
+        log.exception("Unhandled receiver error", exc_info=exc)
+        return JSONResponse(
+            {"error": "INTERNAL_ERROR", "message": "Receiver encountered an unexpected error", "retryable": True},
+            status_code=500,
+        )
+
     app.include_router(build_admin_router(pairing, admin_allowed_hosts or {"127.0.0.1", "::1"}))
 
     @app.post("/v1/pair/claim")
     async def pair_claim(request: Request) -> dict:
+        peer = request.client.host if request.client else "unknown"
+        if not pairing_limiter.allow(peer):
+            raise MConnError(429, "RATE_LIMITED", "Too many pairing attempts; try again shortly", retryable=True)
         data = _json(await read_json_body(request))
         session_id = pairing.claim(data.get("token"), data.get("device_name"), data.get("public_key"))
         return await pairing.wait_for_decision(session_id)

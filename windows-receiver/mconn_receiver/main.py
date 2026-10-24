@@ -5,6 +5,8 @@ import asyncio
 import logging
 import os
 import socket
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import uvicorn
 
@@ -15,6 +17,18 @@ from .net import bind_hosts, candidate_ips
 from .tls import ensure_certificate
 
 log = logging.getLogger("mconn")
+
+
+def configure_logging(data_dir: Path) -> None:
+    """Send receiver logs to a bounded file suitable for Task Scheduler."""
+    log_dir = data_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(log_dir / "receiver.log", maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[handler, logging.StreamHandler()],
+    )
 
 
 def _listen_sockets(hosts: list[str], port: int) -> list[socket.socket]:
@@ -31,9 +45,9 @@ def _listen_sockets(hosts: list[str], port: int) -> list[socket.socket]:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     settings = load_settings()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    configure_logging(settings.data_dir)
     advertised_hosts = settings.advertise_hosts or candidate_ips()
     # Pairing payloads may contain only names represented in the certificate's
     # SAN; Android retains normal hostname validation in addition to pinning.

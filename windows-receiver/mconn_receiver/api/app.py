@@ -19,6 +19,8 @@ from ..transfer.service import TransferService
 from .admin import build_admin_router
 from .auth import Authenticator
 
+MAX_JSON_BODY_BYTES = 16 * 1024
+
 
 def _json(body: bytes) -> dict:
     try:
@@ -28,6 +30,26 @@ def _json(body: bytes) -> dict:
     if not isinstance(data, dict):
         raise MConnError(400, "INVALID_REQUEST", "Body must be a JSON object")
     return data
+
+
+async def read_json_body(request: Request) -> bytes:
+    """Read a small JSON request without allowing an unauthenticated memory sink."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > MAX_JSON_BODY_BYTES:
+                raise MConnError(413, "REQUEST_TOO_LARGE", "JSON request body exceeds 16 KiB")
+        except ValueError:
+            raise MConnError(400, "INVALID_REQUEST", "Content-Length must be an integer") from None
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_JSON_BODY_BYTES:
+            raise MConnError(413, "REQUEST_TOO_LARGE", "JSON request body exceeds 16 KiB")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def create_app(settings: Settings, cert_sha256: str = "", admin_allowed_hosts: set[str] | None = None) -> FastAPI:
@@ -69,7 +91,7 @@ def create_app(settings: Settings, cert_sha256: str = "", admin_allowed_hosts: s
 
     @app.post("/v1/pair/claim")
     async def pair_claim(request: Request) -> dict:
-        data = _json(await request.body())
+        data = _json(await read_json_body(request))
         session_id = pairing.claim(data.get("token"), data.get("device_name"), data.get("public_key"))
         return await pairing.wait_for_decision(session_id)
 
@@ -80,7 +102,7 @@ def create_app(settings: Settings, cert_sha256: str = "", admin_allowed_hosts: s
 
     @app.post("/v1/transfers")
     async def create_transfer(request: Request) -> JSONResponse:
-        body = await request.body()
+        body = await read_json_body(request)
         device = auth.authenticate(request, body)
         status, payload = transfers.create(device["device_id"], _json(body))
         return JSONResponse(payload, status_code=status)

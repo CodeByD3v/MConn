@@ -173,6 +173,10 @@ Relevant codes are `INVALID_REQUEST`, `BAD_SIGNATURE`, `STALE_REQUEST`,
 `TRANSFER_NOT_FOUND`, `TRANSFER_CONFLICT`, `OFFSET_MISMATCH`,
 `FILE_TOO_LARGE`, `HASH_MISMATCH`, `INSUFFICIENT_STORAGE`, and `NOT_ACCEPTING`.
 
+JSON request bodies for `POST /v1/pair/claim` and `POST /v1/transfers` are
+limited to 16 KiB, including chunked requests without a `Content-Length`
+header. A larger body returns `413 REQUEST_TOO_LARGE` with `retryable: false`.
+
 ## 6. Commit guarantees
 
 The receiver streams content to a receiver-controlled staging file, verifies

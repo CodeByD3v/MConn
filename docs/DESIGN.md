@@ -14,6 +14,12 @@ Items marked **(proposed)** are design choices made in this document that have n
 
 ## 2. User flows
 
+### 2.0 Delivery-source selection
+
+MConn accepts four planned input forms: an Android shared file, an explicit accessible download URL, a browser-extension handoff, or a provider-specific adapter. The UI shows the source capability before creating a job: **transfer from phone**, **PC retrieves this file**, or **not supported**. It never implies that a provider integration can browse a user's conversations or files unless that capability is explicitly authorized and implemented.
+
+For a PC-retrieved source, the phone sends a reference and optional integrity metadata, not file bytes. The receiver authenticates the paired device, retrieves the source through the user's approved authorization, verifies the result, and commits it with the same atomic storage rules as an upload. If direct retrieval is unavailable, the user can select the file and use the ordinary share transfer.
+
 ### 2.1 First-time setup (PC)
 
 1. Install and start the receiver.
@@ -134,6 +140,8 @@ v1 needs three actions: start pairing (show QR), list devices, revoke device. Pr
 ## 5. Protocol
 
 Transport: HTTPS, JSON for metadata, raw bytes for content. All routes are under `/v1`. (The earlier draft listed `/pair/claim`; it is now `/v1/pair/claim` for consistency.)
+
+`/v1` currently defines only the phone-to-PC upload path. Source-reference retrieval and provider adapters are future additive, versioned endpoints; they must not accept account passwords, raw provider session cookies, or opaque conversation access claims.
 
 ### 5.1 Request authentication
 

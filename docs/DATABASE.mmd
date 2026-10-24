@@ -46,6 +46,7 @@ erDiagram
 
     %% ---------- Windows receiver (SQLite) ----------
     PC_DEVICE ||--o{ PC_TRANSFER : "uploaded"
+    PC_TRANSFER ||--o| PC_SOURCE_REFERENCE : "may retrieve from"
     PC_DEVICE ||--o{ PC_NONCE : "used"
     PC_PAIRING_SESSION |o--o| PC_DEVICE : "produced"
 
@@ -87,6 +88,17 @@ erDiagram
         int created_at
         int updated_at
         int committed_at
+    }
+
+    %% Planned for the versioned direct-retrieval contract. This table is not
+    %% part of the current upload implementation or migration set.
+    PC_SOURCE_REFERENCE {
+        text transfer_id PK, FK "one authorized source per transfer"
+        text adapter_id "generic-url, browser, provider-specific"
+        text reference "minimal approved locator; never a password or session cookie"
+        text expected_sha256 "optional source integrity metadata"
+        text capability "RETRIEVE_SPECIFIC_FILE only when supported"
+        int created_at
     }
 
     PC_NONCE {

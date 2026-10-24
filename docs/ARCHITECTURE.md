@@ -5,7 +5,7 @@
 
 ## 1. Purpose
 
-MConn delivers files from an Android phone into a chosen folder on a Windows PC. The user shares a file from any app, picks MConn, and the file appears in the PC inbox (for example `D:\MConn\Inbox\`) without the user thinking about networking, whether the PC is on, or how the transfer happens.
+MConn delivers files into a chosen folder on a Windows PC. The initial path is an Android Share Target: the user picks MConn and the selected file appears in the PC inbox (for example `D:\MConn\Inbox\`). The architecture also supports authorized source references—such as an accessible download URL—so the PC can retrieve bytes directly when a source explicitly permits it.
 
 ### Goals
 
@@ -15,6 +15,7 @@ MConn delivers files from an Android phone into a chosen folder on a Windows PC.
 4. **Deferred delivery:** if the PC is off or unreachable, the phone keeps the file and delivers it later.
 5. **Automatic acceptance** from a paired phone, with the PC as the sole authority over trust.
 6. **No cloud file storage.** Any relay only forwards encrypted bytes.
+7. **Provider-neutral delivery:** source-specific adapters feed one persistent transfer engine and do not dictate inbox or commit behavior.
 
 ### Non-goals (v1)
 
@@ -23,6 +24,8 @@ MConn delivers files from an Android phone into a chosen folder on a Windows PC.
 - iOS, macOS or Linux clients.
 - Building our own NAT traversal or relay infrastructure.
 - Executing, previewing or scanning received files.
+- Unrestricted access to consumer AI conversations, account exports, or provider history.
+- Scraping, credential collection, or bypassing a provider's access controls.
 
 ## 2. System context
 
@@ -88,6 +91,24 @@ Paths B and C are transparent to MConn: both appear as the same private-network 
 | Record of committed files | **PC** | A transfer is "delivered" only when the PC says so. |
 | Trust (who may upload) | **PC** | Phone cannot grant itself access; PC can revoke at any time. |
 | Destination path and final filename | **PC** | The phone never supplies a filesystem path. |
+| Authorized-source credentials | **Their owning platform** | MConn uses only supported authorization; it neither stores provider passwords nor bypasses consent. |
+
+## 4.1 Source adapters and common delivery engine
+
+Every input is normalized into a delivery job before it reaches the receiver's storage layer:
+
+```mermaid
+flowchart LR
+    I["Android Share · browser extension · explicit URL · provider adapter"] --> A["Source adapter\n(capabilities + authorization)"]
+    A --> E["MConn transfer engine\n(queue · routing · retry · hash · receipt)"]
+    E --> R["Windows receiver\nauthenticate · retrieve/receive · verify · save"]
+```
+
+An adapter declares its capabilities explicitly: it may accept an explicit file, a user-selected download URL, retrieve a specific file through an approved API, or list eligible files. A missing capability is not inferred by the UI.
+
+**Reference-first rule:** if an authorized source gives MConn a stable, user-approved reference, the PC retrieves bytes directly from that source. This avoids duplicating a large file through phone storage. If no such retrieval method exists, the Android share path streams the selected file through the existing staged upload protocol. Both paths converge before final verification, filename sanitisation, conflict resolution, atomic commit, and receipt creation.
+
+Provider adapters are intentionally isolated from the transfer engine. A ChatGPT, Claude, Gemini, or future adapter must use only that provider's supported retrieval mechanism and declare its limits. Shared links and browser-assisted user actions are valid generic inputs; account export is not a live retrieval API, and no adapter may claim access to arbitrary consumer-chat history.
 
 ## 5. Delivery lifecycle
 

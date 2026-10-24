@@ -1,8 +1,10 @@
 # MConn transfer contracts
 
-This is the wire-contract source of truth for MConn v1. All routes use HTTPS.
+This is the wire-contract source of truth for MConn v1's phone-to-PC transfer path. All routes use HTTPS.
 JSON uses UTF-8, and binary upload content is sent as `application/octet-stream`.
 The phone never supplies a destination path, and receipts never expose one.
+
+Direct retrieval from an authorized external source and provider adapters are planned extensions. They require an additive, versioned contract before implementation; no current endpoint accepts provider credentials, conversation identifiers, or arbitrary source references.
 
 ## 1. Transport security
 

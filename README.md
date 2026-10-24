@@ -1,6 +1,6 @@
 # MConn
 
-Share a file from any Android app, choose **MConn**, and it lands in a folder on your Windows PC. No cloud storage, no thinking about networking, and no problem if the PC is off when you send.
+Share a file from any Android app, choose **MConn**, and it lands in a folder on your Windows PC. MConn is designed to grow into a multi-provider delivery platform: it can transfer a file from the phone, or—when a supported, authorized source permits it—send a reference so the PC retrieves the file directly.
 
 > **Status:** implementation in progress. See [ROADMAP.md](docs/ROADMAP.md) for the current phase.
 
@@ -12,6 +12,7 @@ Share a file from any Android app, choose **MConn**, and it lands in a folder on
 - **Deferred transfer:** if the PC is off or unreachable, the phone keeps the file and delivers it when the PC is back.
 - **Automatic acceptance:** pair your phone once with a QR code; after that, files from it are accepted without prompts.
 - **Safe delivery:** every file is hash-verified, committed atomically, never overwrites existing files, and is never duplicated by a double-send.
+- **Extensible sources:** Share-sheet files, accessible download URLs, browser integration, and provider-specific adapters feed one delivery engine. An adapter never promises access that its provider does not authorize.
 
 ## How it works
 
@@ -29,6 +30,12 @@ flowchart LR
 5. The PC returns a receipt; only then does the phone mark it delivered and clean up.
 
 The phone owns the pending queue. The PC owns the inbox and the record of what was delivered.
+
+## Delivery sources and providers
+
+MConn has one transfer engine, not one transport per AI provider. Each source adapter declares whether it can list files, accept a shared/download URL, retrieve a specific authorized file, or access any history. The default and safest capability is an explicit file or URL selected by the user.
+
+When an adapter supplies an authorized reference, the PC retrieves the bytes directly from that source and then applies the usual hash verification and atomic inbox commit. If direct retrieval is unavailable, MConn falls back to copying the selected file from the phone. Provider adapters never scrape conversations, bypass access controls, or treat account exports as live retrieval APIs.
 
 ## Components
 

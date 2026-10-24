@@ -10,10 +10,11 @@
 | --- | --- | --- |
 | 0 | Foundations | Decisions locked, repo scaffolded, protocol contract written |
 | 1 | Local transfer MVP | A shared file arrives intact over Wi-Fi |
-| 2 | Reliable deferred delivery | Offline PC, retries and duplicates handled |
-| 3 | Remote connectivity | Delivery across different networks via a private network |
-| 4 | Polish and harden | Resume, revocation, UX and security hardening |
-| 5+ | Later | Integrated remote transport and other extensions |
+| 2 | Universal Share | Browser handoff and accessible download URLs join the Android share path |
+| 3 | Direct retrieval | PC retrieves authorized source references directly |
+| 4 | Provider connectors | Supported ChatGPT, Claude, Gemini, and future adapters declare capabilities |
+| 5 | Reliable and remote delivery | Deferred delivery, private-network connectivity, resume, revocation, and hardening |
+| 6+ | Later | Unified eligible-file library and integrated remote transport |
 
 ## Phase 0 — Foundations
 
@@ -53,7 +54,40 @@ Build the Windows receiver and Android sender. Pair via QR, choose a destination
 
 **Exit criterion:** a shared ZIP and a Python file from the Share menu arrive byte-identical (hash-verified) in the selected folder, with internet disconnected.
 
-## Phase 2 — Reliable deferred delivery
+## Phase 2 — Universal Share
+
+**Deliverables**
+
+- [ ] Browser extension handoff for an explicit user-selected download URL.
+- [ ] Generic URL input with clear reachability and authorization feedback.
+- [ ] A common source-adapter interface that declares: explicit-file, URL, retrieve-specific-file, and list-eligible-files capabilities.
+- [ ] Keep Android Share Target file transfer as the fallback for every source that cannot support direct retrieval.
+
+**Exit criterion:** a user can select either a phone file or an accessible download URL and see an honest, source-specific delivery status without MConn claiming unsupported provider access.
+
+## Phase 3 — Direct retrieval
+
+**Deliverables**
+
+- [ ] Add a versioned, additive reference-delivery contract before implementation.
+- [ ] Receiver retrieves an approved reference directly, without staging bytes on the phone.
+- [ ] Apply the existing size limit, hash verification, filename sanitisation, conflict handling, atomic commit, and receipt rules to retrieved files.
+- [ ] Store only the minimum reference metadata needed for retries; never store provider passwords, session cookies, file contents in logs, or unrestricted conversation identifiers.
+
+**Exit criterion:** an authorized, user-selected source file is downloaded by the PC and committed byte-verified into the inbox without a phone byte relay.
+
+## Phase 4 — Provider connectors
+
+**Deliverables**
+
+- [ ] Add individual adapters only for provider-supported, authorized retrieval paths.
+- [ ] Start with shared links and browser-assisted handoff; add official API workflows where a provider supports them.
+- [ ] Show adapter capabilities in the UI and suppress unavailable actions.
+- [ ] Never use scraping, account-export polling, credential capture, or broad consumer-chat access as an integration method.
+
+**Exit criterion:** each shipped adapter has documented authorization, capability limits, and end-to-end tests for its supported path.
+
+## Phase 5 — Reliable and remote delivery
 
 **Deliverables**
 
@@ -68,7 +102,7 @@ Build the Windows receiver and Android sender. Pair via QR, choose a destination
 
 **Exit criterion:** send a file, shut the PC down, power it on later, and the file arrives without any manual resend.
 
-## Phase 3 — Remote connectivity
+### Remote connectivity
 
 **Deliverables**
 
@@ -81,7 +115,7 @@ Build the Windows receiver and Android sender. Pair via QR, choose a destination
 
 **Exit criterion:** a file is delivered between two different networks with no cloud file storage involved, and local delivery continues to work offline.
 
-## Phase 4 — Polish and harden
+### Polish and harden
 
 **Deliverables**
 
@@ -113,14 +147,14 @@ Build the Windows receiver and Android sender. Pair via QR, choose a destination
 | 2 | Files shared from other Android apps via the Share menu | 1 |
 | 3 | Large ZIP arrives with matching SHA-256 | 1 |
 | 4 | Unpaired device cannot upload | 1 |
-| 5 | Send while PC is off; delivered after PC starts | 2 |
-| 6 | Same transfer sent twice creates one file | 2 |
-| 7 | Network disconnected mid-upload; recovery without corruption | 2 / 4 |
-| 8 | Name collision creates a suffixed copy, never overwrites | 2 |
-| 9 | Remote delivery across different networks | 3 |
-| 10 | Relayed remote path does not persist file contents | 3 |
-| 11 | Revoked phone can no longer send | 4 |
-| 12 | Stale or replayed request is rejected | 4 |
+| 5 | Send while PC is off; delivered after PC starts | 5 |
+| 6 | Same transfer sent twice creates one file | 5 |
+| 7 | Network disconnected mid-upload; recovery without corruption | 5 |
+| 8 | Name collision creates a suffixed copy, never overwrites | 5 |
+| 9 | Authorized URL is retrieved directly by PC | 3 |
+| 10 | Provider adapter exposes only its declared capabilities | 4 |
+| 11 | Remote delivery across different networks | 5 |
+| 12 | Revoked phone and stale or replayed requests are rejected | 5 |
 
 ## Risks
 

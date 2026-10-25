@@ -108,6 +108,14 @@ erDiagram
         int seen_at "purged after the skew window"
     }
 
+    PC_AUDIT_EVENT {
+        int event_id PK
+        text event_type "PAIRING_*, DEVICE_*; never contains secrets"
+        text subject_id
+        int occurred_at
+        text detail "non-secret display metadata only"
+    }
+
     PC_SETTING {
         text key PK "inbox_dir, port, max_file_bytes, ..."
         text value

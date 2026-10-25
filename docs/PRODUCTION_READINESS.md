@@ -15,7 +15,8 @@ or demonstrated release artifact. It does not change the current v1 protocol.
 - [ ] Decide and document a certificate-rotation strategy that preserves the
   pinning invariant while allowing address/SAN changes.
 - [~] Add rolling, durable receiver logs. `receiver.log` now rotates under the
-  receiver data directory; pairing, revocation, and receipt audit events remain.
+  receiver data directory; pairing, revocation, and transfer-receipt audit
+  events are persisted without secrets or file contents.
 - [ ] Protect the local management surface for shared Windows accounts and use
   Windows-appropriate private-key access controls.
 - [~] Add Windows CI and exercise locked files, long paths, reserved names,

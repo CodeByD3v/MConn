@@ -11,13 +11,24 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
+# Install into the receiver's own environment. The scheduled task must not
+# depend on whichever Python happens to be first on PATH at logon.
+$venv = Join-Path $root ".venv"
+if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
+  & $Python -m venv $venv
+}
+$venvPython = Join-Path $venv "Scripts\python.exe"
+& $venvPython -m pip install --upgrade pip
+& $venvPython -m pip install -e $root
+
 # 1. Firewall: never open the receiver to Public networks or the internet.
 Remove-NetFirewallRule -DisplayName "MConn Receiver" -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName "MConn Receiver" -Direction Inbound -Protocol TCP -LocalPort $Port `
   -Action Allow -Profile Private,Domain -RemoteAddress LocalSubnet,100.64.0.0/10 | Out-Null
 
 # 2. Scheduled task at logon (runs as the current user, no console window via pythonw if present)
-$exe = if (Test-Path ($Python -replace 'python\.exe$','pythonw.exe')) { $Python -replace 'python\.exe$','pythonw.exe' } else { $Python }
+$exe = Join-Path $venv "Scripts\pythonw.exe"
+if (-not (Test-Path $exe)) { $exe = $venvPython }
 $action  = New-ScheduledTaskAction -Execute $exe -Argument "-m mconn_receiver" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `

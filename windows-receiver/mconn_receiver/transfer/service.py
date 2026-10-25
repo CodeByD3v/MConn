@@ -193,6 +193,7 @@ class TransferService:
             "WHERE transfer_id=?",
             (stored, now, now, tid),
         )
+        self.db.audit("TRANSFER_COMMITTED", tid, stored)
         return self.view(self._row(tid))
 
     # ---- startup / periodic housekeeping -----------------------------

@@ -13,7 +13,10 @@ PAGE = """<!doctype html><meta charset=utf-8><title>MConn admin</title>
 button{padding:.4rem .8rem;margin:.2rem}.card{border:1px solid #8884;border-radius:8px;padding:1rem;margin:1rem 0}
 svg{max-width:280px;background:#fff;padding:8px}</style>
 <h1>MConn</h1>
-<div class=card><button id=pair>Pair new phone</button><div id=qr></div><div id=pending></div></div>
+<div class=card><button id=pair>Pair new phone</button><div id=qr></div>
+<label for=payload>Pairing payload (temporary manual pairing)</label>
+<textarea id=payload readonly rows=5 style="width:100%;box-sizing:border-box"></textarea>
+<button id=copy type=button>Copy pairing payload</button><div id=pending></div></div>
 <div class=card><h3>Paired phones</h3><div id=devices></div></div>
 <script>
 const H={'X-MConn-Admin':'1','Content-Type':'application/json'};
@@ -21,7 +24,11 @@ const api=(m,p)=>fetch('/admin/api'+p,{method:m,headers:H}).then(r=>r.json());
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 document.getElementById('pair').onclick=async()=>{
   const r=await api('POST','/pairing');
-  document.getElementById('qr').innerHTML=r.svg+'<p>Scan with MConn. Expires in 5 minutes.</p>';};
+  document.getElementById('qr').innerHTML=r.svg+'<p>Scan with MConn or copy the payload. Expires in 5 minutes.</p>';
+  document.getElementById('payload').value=r.payload;};
+document.getElementById('copy').onclick=async()=>{
+  const p=document.getElementById('payload'); if(!p.value)return;
+  try{await navigator.clipboard.writeText(p.value)}catch(_){p.select();document.execCommand('copy')}};
 async function refresh(){
   const p=await api('GET','/pairing/pending');
   document.getElementById('pending').innerHTML=p.map(x=>'<p><b>'+esc(x.device_name)+'</b> wants to pair '+

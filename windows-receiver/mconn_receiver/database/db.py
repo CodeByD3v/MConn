@@ -60,6 +60,19 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE audit_events (
+            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            subject_id TEXT,
+            occurred_at INTEGER NOT NULL,
+            detail TEXT
+        );
+        CREATE INDEX idx_audit_events_time ON audit_events(occurred_at);
+        """,
+    ),
 ]
 
 
@@ -126,6 +139,13 @@ class Database:
 
     def set_setting(self, key: str, value: str) -> None:
         self.run("INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+
+    def audit(self, event_type: str, subject_id: str | None = None, detail: str | None = None) -> None:
+        """Persist security-relevant metadata only; callers must never supply secrets."""
+        self.run(
+            "INSERT INTO audit_events(event_type, subject_id, occurred_at, detail) VALUES (?,?,?,?)",
+            (event_type, subject_id, now_ms(), detail),
+        )
 
     def close(self) -> None:
         with self._lock:

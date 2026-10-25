@@ -55,6 +55,7 @@ class PairingService:
             "INSERT INTO pairing_sessions(session_id, token_hash, created_at, expires_at) VALUES (?,?,?,?)",
             (session_id, _hash_token(token), created, expires),
         )
+        self.db.audit("PAIRING_SESSION_CREATED", session_id)
         payload = {
             "v": 1,
             "pc_id": self.identity.pc_id,
@@ -85,20 +86,27 @@ class PairingService:
                 "UPDATE pairing_sessions SET consumed_at=?, pending_device_name=?, pending_public_key=? WHERE session_id=?",
                 (now_ms(), device_name, public_key, row["session_id"]),
             )
+            self.db.audit("PAIRING_CLAIMED", row["session_id"], device_name)
             return row["session_id"]
 
     async def wait_for_decision(self, session_id: str) -> dict:
         deadline = asyncio.get_running_loop().time() + self.settings.pairing_wait_seconds
-        while True:
-            row = self.db.one("SELECT * FROM pairing_sessions WHERE session_id=?", (session_id,))
-            if row["outcome"] == "APPROVED":
-                return {"device_id": row["resulting_device_id"], "pc_id": self.identity.pc_id, "pc_name": self.identity.pc_name}
-            if row["outcome"] in ("DENIED", "EXPIRED"):
-                raise MConnError(403, "PAIRING_DENIED", "Pairing was not approved")
-            if asyncio.get_running_loop().time() >= deadline:
-                self.db.run("UPDATE pairing_sessions SET outcome='EXPIRED' WHERE session_id=? AND outcome='PENDING'", (session_id,))
-                raise MConnError(408, "PAIRING_PENDING", "Pairing was not approved in time", retryable=False)
-            await asyncio.sleep(self.settings.pairing_poll_seconds)
+        try:
+            while True:
+                row = self.db.one("SELECT * FROM pairing_sessions WHERE session_id=?", (session_id,))
+                if row["outcome"] == "APPROVED":
+                    return {"device_id": row["resulting_device_id"], "pc_id": self.identity.pc_id, "pc_name": self.identity.pc_name}
+                if row["outcome"] in ("DENIED", "EXPIRED"):
+                    raise MConnError(403, "PAIRING_DENIED", "Pairing was not approved")
+                if asyncio.get_running_loop().time() >= deadline:
+                    self.db.run("UPDATE pairing_sessions SET outcome='EXPIRED' WHERE session_id=? AND outcome='PENDING'", (session_id,))
+                    self.db.audit("PAIRING_EXPIRED", session_id)
+                    raise MConnError(408, "PAIRING_PENDING", "Pairing was not approved in time", retryable=False)
+                await asyncio.sleep(self.settings.pairing_poll_seconds)
+        except asyncio.CancelledError:
+            self.db.run("UPDATE pairing_sessions SET outcome='EXPIRED' WHERE session_id=? AND outcome='PENDING'", (session_id,))
+            self.db.audit("PAIRING_CANCELLED", session_id)
+            raise
 
     # ---- PC side (admin) ----------------------------------------------
     def pending(self) -> list[dict]:
@@ -109,19 +117,28 @@ class PairingService:
         return [{"session_id": r["session_id"], "device_name": r["pending_device_name"]} for r in rows]
 
     def approve(self, session_id: str) -> str:
+        expired = False
         with self.db.transaction():
             row = self.db.one("SELECT * FROM pairing_sessions WHERE session_id=?", (session_id,))
             if row is None or row["outcome"] != "PENDING" or not row["pending_public_key"]:
                 raise MConnError(404, "PAIRING_NOT_PENDING", "No pending pairing request with that id")
-            device_id = str(uuid.uuid4())
-            self.db.run(
-                "INSERT INTO devices(device_id, name, public_key, status, paired_at) VALUES (?,?,?,'ACTIVE',?)",
-                (device_id, row["pending_device_name"], row["pending_public_key"], now_ms()),
-            )
-            self.db.run(
-                "UPDATE pairing_sessions SET outcome='APPROVED', resulting_device_id=? WHERE session_id=?",
-                (device_id, session_id),
-            )
+            if row["expires_at"] < now_ms():
+                self.db.run("UPDATE pairing_sessions SET outcome='EXPIRED' WHERE session_id=?", (session_id,))
+                expired = True
+            else:
+                device_id = str(uuid.uuid4())
+                self.db.run(
+                    "INSERT INTO devices(device_id, name, public_key, status, paired_at) VALUES (?,?,?,'ACTIVE',?)",
+                    (device_id, row["pending_device_name"], row["pending_public_key"], now_ms()),
+                )
+                self.db.run(
+                    "UPDATE pairing_sessions SET outcome='APPROVED', resulting_device_id=? WHERE session_id=?",
+                    (device_id, session_id),
+                )
+                self.db.audit("DEVICE_PAIRED", device_id, row["pending_device_name"])
+        if expired:
+            self.db.audit("PAIRING_EXPIRED", session_id)
+            raise MConnError(403, "PAIRING_INVALID", "Pairing code has expired")
         return device_id
 
     def deny(self, session_id: str) -> None:
@@ -130,6 +147,7 @@ class PairingService:
         )
         if cur.rowcount == 0:
             raise MConnError(404, "PAIRING_NOT_PENDING", "No pending pairing request with that id")
+        self.db.audit("PAIRING_DENIED", session_id)
 
     def list_devices(self) -> list[dict]:
         rows = self.db.all("SELECT device_id, name, status, paired_at, last_seen_at FROM devices ORDER BY paired_at DESC")
@@ -142,3 +160,4 @@ class PairingService:
         )
         if cur.rowcount == 0:
             raise MConnError(404, "DEVICE_UNKNOWN", "No active device with that id")
+        self.db.audit("DEVICE_REVOKED", device_id)
